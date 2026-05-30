@@ -3,9 +3,6 @@ import type { Shipment } from '../types'
 import { parseDate, rel, isDelivered } from '../lib/date'
 import { IconSearch, IconChev, IconBox, IconAlert } from './Icons'
 
-/** Código de ejemplo real (verificado contra el API). */
-const SAMPLE = 'CM915528340AP'
-
 interface HomeProps {
   shipments: Shipment[]
   error: string | null
@@ -16,7 +13,7 @@ interface HomeProps {
 
 export function Home({ shipments, error, lastQuery, onSearch, onOpen }: HomeProps) {
   const [q, setQ] = useState(error ? lastQuery : '')
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     if (error) inputRef.current?.focus()
@@ -41,10 +38,6 @@ export function Home({ shipments, error, lastQuery, onSearch, onOpen }: HomeProp
           />
           <button className="btn-go" type="submit">Rastrear</button>
         </form>
-        <div className="chips">
-          <span className="lbl">Probar:</span>
-          <button className="chip" onClick={() => onSearch(SAMPLE)}>{SAMPLE}</button>
-        </div>
         {error && (
           <div className="errbox" style={{ marginTop: 16 }}>
             <IconAlert />
@@ -73,20 +66,14 @@ export function Home({ shipments, error, lastQuery, onSearch, onOpen }: HomeProp
             const dotCol = done ? 'var(--green)' : 'var(--accent)'
             return (
               <button key={s.hbl} className="ship" onClick={() => onOpen(s.hbl)}>
-                <span className="dot" style={{ background: dotCol }}></span>
-                <span className="body">
-                  <span className="name">{s.alias || s.hbl}</span>
-                  <span className="meta">
-                    {s.alias && (
-                      <>
-                        <span className="mono" style={{ opacity: 0.7 }}>{s.hbl}</span>{' · '}
-                      </>
-                    )}
-                    <b>{s.latestStatus || '—'}</b>
-                  </span>
+                <span className="ship-head">
+                  <span className="dot" style={{ background: dotCol }}></span>
+                  <span className="ship-name">{s.alias || s.hbl}</span>
+                  <span className="chev"><IconChev /></span>
                 </span>
-                <span className="when">{d ? rel(d) : ''}</span>
-                <span className="chev"><IconChev /></span>
+                {s.alias && <span className="ship-code">{s.hbl}</span>}
+                <span className="ship-status">{s.latestStatus || '—'}</span>
+                <span className="ship-when">{d ? `Actualizado ${rel(d)}` : ''}</span>
               </button>
             )
           })}

@@ -63,7 +63,7 @@ body{
   transform: rotate(45deg);
 }
 .brand-name{ font-weight: 800; font-size: 18px; letter-spacing: -0.02em; }
-.brand-tag{ font-size: 12.5px; color: var(--faint); font-weight: 500; margin-top: -2px; }
+.brand-tag{ font-size: 12.5px; color: var(--faint); font-weight: 600; margin-top: -2px; }
 
 /* ---------- hero / search ---------- */
 .hero h1{
@@ -121,20 +121,6 @@ form.search input::placeholder{ color: var(--faint); text-transform: none; font-
 .btn-go:active{ transform: translateY(0); }
 .btn-go:disabled{ opacity: .6; cursor: default; transform: none; }
 
-.chips{ display:flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items:center; }
-.chips .lbl{ font-size: 12.5px; color: var(--faint); margin-right: 2px; }
-.chip{
-  font-family: "JetBrains Mono", monospace;
-  font-size: 12px; font-weight: 500;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  color: var(--muted);
-  padding: 5px 10px; border-radius: 20px;
-  cursor: pointer;
-  transition: all .15s;
-}
-.chip:hover{ border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); }
-
 /* ---------- section label ---------- */
 .sec-head{
   display:flex; align-items: baseline; justify-content: space-between;
@@ -146,11 +132,11 @@ form.search input::placeholder{ color: var(--faint); text-transform: none; font-
 /* ---------- saved list ---------- */
 .list{ display:flex; flex-direction: column; gap: 10px; }
 .ship{
-  display:flex; align-items:center; gap: 13px;
+  display:flex; flex-direction: column; gap: 9px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  padding: 14px 15px;
+  padding: 16px;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
   transition: transform .14s, box-shadow .18s, border-color .18s;
@@ -159,13 +145,13 @@ form.search input::placeholder{ color: var(--faint); text-transform: none; font-
   font-family: inherit;
 }
 .ship:hover{ transform: translateY(-1px); box-shadow: var(--shadow-md); border-color: oklch(0.86 0.01 80); }
-.ship .dot{ width: 11px; height: 11px; border-radius: 50%; flex:none; }
-.ship .body{ flex:1; min-width:0; }
-.ship .name{ font-weight: 700; font-size: 15px; letter-spacing: -0.01em; white-space: nowrap; overflow:hidden; text-overflow: ellipsis; }
-.ship .meta{ font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow:hidden; text-overflow: ellipsis; margin-top: 1px; }
-.ship .meta b{ color: var(--ink); font-weight: 600; }
-.ship .when{ font-size: 11.5px; color: var(--faint); flex:none; font-family: "JetBrains Mono", monospace; }
-.ship .chev{ color: var(--faint); flex:none; }
+.ship-head{ display:flex; align-items:center; gap: 10px; }
+.ship .dot{ width: 10px; height: 10px; border-radius: 50%; flex:none; }
+.ship-name{ flex:1; min-width:0; font-weight: 700; font-size: 15.5px; letter-spacing: -0.01em; color: var(--ink); white-space: nowrap; overflow:hidden; text-overflow: ellipsis; }
+.ship .chev{ color: var(--faint); flex:none; display:grid; place-items:center; }
+.ship-code{ margin-left: 20px; margin-top: -5px; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; color: var(--faint); }
+.ship-status{ margin-left: 20px; font-size: 14px; font-weight: 500; color: var(--ink); line-height: 1.4; }
+.ship-when{ margin-left: 20px; font-size: 12px; color: var(--faint); font-family: "JetBrains Mono", ui-monospace, monospace; }
 
 /* ---------- empty ---------- */
 .empty{
@@ -256,7 +242,7 @@ input.alias:focus{ background: var(--accent-soft); padding-left: 6px; box-shadow
 .ev .ev-status{ font-weight: 600; font-size: 14.5px; letter-spacing: -0.005em; color: var(--muted); }
 .ev.latest .ev-status{ color: var(--ink); font-weight: 700; }
 .ev .ev-date{ font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--faint); margin-top: 3px; }
-.ev .ev-date b{ color: var(--muted); font-weight: 500; }
+.ev .ev-date b{ color: var(--muted); font-weight: 600; }
 
 .anim-in{ opacity: 0; transform: translateY(6px); animation: rise .4s cubic-bezier(.2,.7,.3,1) forwards; }
 @keyframes rise{ to{ opacity:1; transform: none; } }
