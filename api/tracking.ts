@@ -24,7 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const upstream = await fetch(UPSTREAM, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code: String(code).trim().toUpperCase() }),
     })
     const data = await upstream.json()
     res.status(upstream.status).json(data)

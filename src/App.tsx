@@ -29,7 +29,7 @@ export default function App() {
   }
 
   async function lookup(code: string) {
-    const c = (code || '').trim()
+    const c = (code || '').trim().toUpperCase()
     if (!c) return
     setError(null)
     setLastQuery(c)
