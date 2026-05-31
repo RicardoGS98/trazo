@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { checkRateLimit, clientIp, isAllowedOrigin, normalizeCode } from './_lib/guard'
+import { checkRateLimit, clientIp, isAllowedOrigin, normalizeCode } from './_lib/guard.js'
 
 const UPSTREAM = 'https://emarket-services.com/api/orders/delivery_status_by_code/'
 const MAX_BODY_BYTES = 1024
