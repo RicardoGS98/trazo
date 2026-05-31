@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { IconRefresh, IconInfo } from './Icons'
 import * as rl from '../lib/rateLimit'
+import { t } from '../lib/i18n'
 
 /** navigator.onLine reactivo. */
 function useOnline(): boolean {
@@ -49,10 +50,10 @@ export function RefreshButton({ hbl, refreshing, onRefresh, variant }: RefreshBu
   const disabled = refreshing || cooling || !online
 
   const title = !online
-    ? 'Sin conexión'
+    ? t('common.offline')
     : cooling
-      ? `Puedes actualizar de nuevo en ${secs}s (máx ${rl.SHIP_MAX}/min)`
-      : 'Actualizar este envío'
+      ? t('refresh.titleCooling', { s: secs, max: rl.SHIP_MAX })
+      : t('refresh.titleReady')
 
   if (variant === 'card') {
     return (
@@ -77,7 +78,7 @@ export function RefreshButton({ hbl, refreshing, onRefresh, variant }: RefreshBu
       disabled={disabled}
       onClick={() => onRefresh(hbl)}
     >
-      <IconRefresh /> {refreshing ? 'Actualizando…' : cooling ? `Espera ${secs}s` : 'Actualizar'}
+      <IconRefresh /> {refreshing ? t('refresh.refreshing') : cooling ? t('common.wait', { s: secs }) : t('refresh.button')}
     </button>
   )
 }
@@ -102,14 +103,14 @@ export function BulkRefreshButton({ count, max, refreshing, onRefreshAll }: Bulk
   const secs = Math.ceil(st.retryMs / 1000)
   const disabled = refreshing || cooling || !online || count === 0
 
-  const label = refreshing ? 'Actualizando…' : cooling ? `Espera ${secs}s` : 'Actualizar todos'
+  const label = refreshing ? t('bulk.refreshing') : cooling ? t('common.wait', { s: secs }) : t('bulk.button')
   const title = !online
-    ? 'Sin conexión'
+    ? t('common.offline')
     : count === 0
-      ? 'No hay envíos que actualizar'
+      ? t('bulk.titleEmpty')
       : cooling
-        ? `Disponible de nuevo en ${secs}s (máx 1/min)`
-        : `Actualiza los ${Math.min(count, max)} más recientes de una vez`
+        ? t('bulk.titleCooling', { s: secs })
+        : t('bulk.titleReady', { n: Math.min(count, max) })
 
   return (
     <span className="bulk-wrap">
@@ -126,7 +127,7 @@ export function BulkRefreshButton({ count, max, refreshing, onRefreshAll }: Bulk
         <button
           type="button"
           className="info-btn"
-          aria-label="Qué hace «Actualizar todos»"
+          aria-label={t('bulk.infoAria')}
           aria-expanded={tipOpen}
           onClick={() => setTipOpen((v) => !v)}
           onBlur={() => setTipOpen(false)}
@@ -134,8 +135,7 @@ export function BulkRefreshButton({ count, max, refreshing, onRefreshAll }: Bulk
           <IconInfo />
         </button>
         <span className={`tip ${tipOpen ? 'open' : ''}`} role="tooltip">
-          Actualiza de una vez los <b>{max} envíos más recientes</b> (por «Actualizado hace»).
-          Máximo <b>1 vez por minuto</b>.
+          {t('bulk.tooltip', { max })}
         </span>
       </span>
     </span>

@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react'
 import type { Shipment } from '../types'
 import { parseDate, rel, isDelivered } from '../lib/date'
+import { translateStatus } from '../lib/status'
+import { t } from '../lib/i18n'
 import { Timeline } from './Timeline'
 import { RefreshButton } from './RefreshButtons'
 import { IconBack, IconCopy, IconCheck, IconTrash, IconPencil } from './Icons'
@@ -8,13 +10,14 @@ import { IconBack, IconCopy, IconCheck, IconTrash, IconPencil } from './Icons'
 interface DetailProps {
   shipment: Shipment
   refreshing: boolean
+  changed: boolean
   onBack: () => void
   onAlias: (hbl: string, alias: string) => void
   onRefresh: (hbl: string) => void
   onDelete: (hbl: string) => void
 }
 
-export function Detail({ shipment, refreshing, onBack, onAlias, onRefresh, onDelete }: DetailProps) {
+export function Detail({ shipment, refreshing, changed, onBack, onAlias, onRefresh, onDelete }: DetailProps) {
   const [alias, setAliasText] = useState(shipment.alias)
   const aliasRef = useRef<HTMLInputElement | null>(null)
 
@@ -29,18 +32,18 @@ export function Detail({ shipment, refreshing, onBack, onAlias, onRefresh, onDel
   return (
     <>
       <button className="back" onClick={onBack}>
-        <IconBack /> Volver
+        <IconBack /> {t('detail.back')}
       </button>
       <div className="card">
         <div className="card-head">
-          <div className="eyebrow">Envío</div>
+          <div className="eyebrow">{t('detail.eyebrow')}</div>
           <div className="alias-row">
             <input
               ref={aliasRef}
               className="alias"
               value={alias}
-              placeholder="Paquete con EcoFlow :)"
-              aria-label="Nombre del envío (editable)"
+              placeholder={t('detail.aliasPlaceholder')}
+              aria-label={t('detail.aliasAria')}
               onChange={(e) => setAliasText(e.target.value)}
               onBlur={() => onAlias(shipment.hbl, alias.trim())}
               onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
@@ -48,7 +51,7 @@ export function Detail({ shipment, refreshing, onBack, onAlias, onRefresh, onDel
             <button
               type="button"
               className="alias-edit"
-              aria-label="Editar nombre del envío"
+              aria-label={t('detail.aliasEditAria')}
               onClick={() => aliasRef.current?.focus()}
             >
               <IconPencil />
@@ -61,31 +64,31 @@ export function Detail({ shipment, refreshing, onBack, onAlias, onRefresh, onDel
             </span>
           </div>
           <div className="status-row">
-            <span className={`badge ${done ? 'is-done' : ''}`}>
+            <span className={`badge ${done ? 'is-done' : ''}${changed ? ' flash-change-badge' : ''}`}>
               <span className={done ? 'bd-dot' : 'pulse'}></span>
-              {latest ? latest.status : 'Sin información'}
+              {latest ? translateStatus(latest.status) : t('detail.noInfo')}
             </span>
           </div>
           <div className="upd" style={{ marginTop: 9 }}>
-            {latestDate ? `Última actualización ${rel(latestDate)}` : ''}
+            {latestDate ? t('detail.lastUpdate', { rel: rel(latestDate) }) : ''}
           </div>
         </div>
         <div className="tl">
           {events.length ? (
             <Timeline events={events} done={done} />
           ) : (
-            <div style={{ color: 'var(--faint)', padding: '20px 0', fontSize: 14 }}>Sin eventos de seguimiento.</div>
+            <div style={{ color: 'var(--faint)', padding: '20px 0', fontSize: 14 }}>{t('detail.noEvents')}</div>
           )}
         </div>
         {notes && (
           <div className="notes">
-            <b>Nota:</b> {notes}
+            <b>{t('detail.note')}</b> {notes}
           </div>
         )}
         <div className="card-foot">
           <RefreshButton variant="detail" hbl={shipment.hbl} refreshing={refreshing} onRefresh={onRefresh} />
           <button className="fbtn danger" onClick={() => onDelete(shipment.hbl)}>
-            <IconTrash /> Quitar
+            <IconTrash /> {t('detail.remove')}
           </button>
         </div>
       </div>
@@ -98,7 +101,7 @@ function CopyButton({ value }: { value: string }) {
   return (
     <button
       className={`copy ${ok ? 'ok' : ''}`}
-      title="Copiar"
+      title={t('copy.title')}
       onClick={() => {
         navigator.clipboard?.writeText(value)
         setOk(true)

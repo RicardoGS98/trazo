@@ -1,4 +1,5 @@
 import type { TrackingResponse } from '../types'
+import { t } from './i18n'
 
 /**
  * Punto único de integración con el backend.
@@ -14,10 +15,8 @@ export async function fetchTracking(code: string): Promise<TrackingResponse> {
     body: JSON.stringify({ code: code.trim() }),
   })
   if (!res.ok) {
-    if (res.status === 429) {
-      throw new Error('Demasiadas consultas seguidas. Espera unos segundos e inténtalo de nuevo.')
-    }
-    throw new Error('No se pudo consultar el envío. Inténtalo de nuevo.')
+    if (res.status === 429) throw new Error(t('error.rateLimitSingle'))
+    throw new Error(t('error.lookupFailed'))
   }
   return (await res.json()) as TrackingResponse
 }
@@ -44,10 +43,8 @@ export async function fetchTrackingBulk(codes: string[]): Promise<BulkResult[]> 
     body: JSON.stringify({ codes }),
   })
   if (!res.ok) {
-    if (res.status === 429) {
-      throw new Error('Solo puedes actualizar todos los envíos una vez por minuto. Espera un poco.')
-    }
-    throw new Error('No se pudieron actualizar los envíos. Inténtalo de nuevo.')
+    if (res.status === 429) throw new Error(t('error.bulkRateLimit'))
+    throw new Error(t('error.bulkFailed'))
   }
   const json = (await res.json()) as { results?: BulkResult[] }
   return json.results ?? []
