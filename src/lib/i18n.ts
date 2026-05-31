@@ -37,6 +37,10 @@ const EN: Dict = {
   'list.title': 'Your shipments',
   'list.empty1': "You haven't tracked any shipments yet.",
   'list.empty2': 'Search for an HBL to start tracking it.',
+  'tabs.active': 'In progress',
+  'tabs.delivered': 'Delivered',
+  'tabs.emptyActive': 'No shipments in progress.',
+  'tabs.emptyDelivered': 'No delivered shipments yet.',
   'card.openAria': 'Open {name}',
   'card.updated': 'Updated {rel}',
 
@@ -94,6 +98,10 @@ const ES: Dict = {
   'list.title': 'Tus envíos',
   'list.empty1': 'Aún no has rastreado ningún envío.',
   'list.empty2': 'Busca un HBL para empezar a seguirlo.',
+  'tabs.active': 'En curso',
+  'tabs.delivered': 'Entregados',
+  'tabs.emptyActive': 'No tienes envíos en curso.',
+  'tabs.emptyDelivered': 'Aún no tienes envíos entregados.',
   'card.openAria': 'Abrir {name}',
   'card.updated': 'Actualizado {rel}',
 

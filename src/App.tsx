@@ -113,10 +113,12 @@ export default function App() {
   // o sin conexión. Resalta si el código de estado cambia.
   async function refreshOne(hbl: string) {
     if (typeof navigator !== 'undefined' && !navigator.onLine) return
+    const current = shipments.find((s) => s.hbl === hbl)
+    if (current?.info?.isDelivered) return // entregado: no se refresca
     if (refreshingHbls.has(hbl)) return
     if (!rl.check(rl.shipKey(hbl), rl.SHIP_MAX).ok) return
     rl.record(rl.shipKey(hbl))
-    const prev = shipments.find((s) => s.hbl === hbl)?.info?.status.code
+    const prev = current?.info?.status.code
     setRefreshingHbls((s) => new Set(s).add(hbl))
     try {
       const info = await fetchTracking(hbl)
@@ -137,13 +139,14 @@ export default function App() {
   // Refresco masivo: los más recientes (máx BULK_MAX_CODES). Límite 1/min.
   async function refreshAll() {
     if (typeof navigator !== 'undefined' && !navigator.onLine) return
-    if (bulkRefreshing || !shipments.length) return
+    const active = shipments.filter((s) => !s.info?.isDelivered) // los entregados no se refrescan
+    if (bulkRefreshing || !active.length) return
     if (!rl.check(rl.BULK_KEY, 1).ok) return
     rl.record(rl.BULK_KEY)
     setBulkRefreshing(true)
     setFlash(null)
-    const codes = shipments.slice(0, BULK_MAX_CODES).map((s) => s.hbl)
-    const prev = new Map(shipments.map((s) => [s.hbl, s.info?.status.code]))
+    const codes = active.slice(0, BULK_MAX_CODES).map((s) => s.hbl)
+    const prev = new Map(active.map((s) => [s.hbl, s.info?.status.code]))
     try {
       const results = await fetchTrackingBulk(codes)
       const changed: string[] = []
