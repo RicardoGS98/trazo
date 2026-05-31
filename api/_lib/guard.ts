@@ -45,6 +45,15 @@ export async function checkRateLimit(ip: string): Promise<RateResult> {
   if (!ratelimiter) return { ok: true, limit: RL_MAX, remaining: RL_MAX, reset: 0 }
   try {
     const r = await ratelimiter.limit(ip)
+    // limit() lanza trabajo en segundo plano (sync multi-region/analytics) en
+    // `pending`. En Fluid Compute una promesa colgante interfiere con el envío
+    // de la respuesta (cuerpo vacío); la resolvemos antes de devolver para que
+    // no quede nada en vuelo al responder.
+    try {
+      await r.pending
+    } catch {
+      /* el trabajo de fondo no debe afectar a la decisión de rate limit */
+    }
     return { ok: r.success, limit: r.limit, remaining: r.remaining, reset: r.reset }
   } catch {
     // Si Redis falla puntualmente, no tiramos la app: permitimos pero avisamos.
