@@ -13,6 +13,11 @@ const STATUS_EN: Record<string, string> = {
   READY_FOR_INTERNATIONAL_DISPATCH: 'Ready for International Dispatch',
   IN_TRANSIT_TO_HUB: 'In Transit to Hub',
   AT_DISTRIBUTION_CENTER: 'At Distribution Center',
+  // Códigos unificados que emite el server para los eventos del POST (lado Cuba).
+  HAVANA_WAREHOUSE: 'At Distribution Warehouse',
+  TRANSPORT_TO_PROVINCE: 'In Transit to Province',
+  AT_PROVINCE_WAREHOUSE: 'At Province Warehouse',
+  LAST_MILE: 'Out for Delivery',
   DELIVERED: 'Delivered',
 }
 
@@ -25,10 +30,17 @@ const PHASE_EN: Record<string, string> = {
   DELIVERED: 'Delivered',
 }
 
-/** Nombre del estado en el idioma activo. */
+/**
+ * Nombre del estado en el idioma activo. En EN traducimos por código y, si el
+ * nombre del API traía una localidad entre paréntesis (p. ej. "(Cienfuegos)"),
+ * la reanexamos para no perderla.
+ */
 export function statusName(code: string, apiName: string): string {
   if (lang !== 'en') return apiName
-  return STATUS_EN[code] || apiName
+  const base = STATUS_EN[code]
+  if (!base) return apiName
+  const loc = apiName.match(/\(([^)]*)\)/)?.[1]?.trim()
+  return loc ? `${base} (${loc})` : base
 }
 
 /** Nombre de la fase en el idioma activo. */
