@@ -5,6 +5,18 @@ const UPSTREAM = 'https://emarket-services.com/api/orders/delivery_status_by_cod
 const MAX_BODY_BYTES = 1024
 
 /**
+ * Envía JSON con el API crudo de Node (res.end) en lugar del azúcar
+ * res.status().json() de @vercel/node. Observado en producción: tras el
+ * `await` del rate limiter, res.json() no llegaba a escribir el cuerpo
+ * (respuestas con Content-Length 0). res.end siempre lo escribe.
+ */
+function sendJson(res: VercelResponse, status: number, body: unknown): void {
+  res.statusCode = status
+  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  res.end(JSON.stringify(body))
+}
+
+/**
  * Proxy serverless. El navegador llama same-origin a POST /api/tracking { code }
  * (sin CORS) y aquí reenviamos el POST al API real desde el servidor, donde CORS
  * no aplica. Devolvemos la respuesta tal cual:
@@ -23,19 +35,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('X-Robots-Tag', 'noindex')
 
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' })
+    sendJson(res, 405, { error: 'Method not allowed' })
     return
   }
 
   // 1) Solo desde nuestra propia app (corta uso cross-site y curl pelado).
   if (!isAllowedOrigin(req)) {
-    res.status(403).json({ error: 'Origen no permitido.' })
+    sendJson(res, 403, { error: 'Origen no permitido.' })
     return
   }
 
   // 2) Cuerpo diminuto: nada de payloads enormes.
   if (Number(req.headers['content-length'] ?? 0) > MAX_BODY_BYTES) {
-    res.status(413).json({ error: 'Petición demasiado grande.' })
+    sendJson(res, 413, { error: 'Petición demasiado grande.' })
     return
   }
 
@@ -46,14 +58,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!rl.ok) {
     const retry = rl.reset ? Math.max(1, Math.ceil((rl.reset - Date.now()) / 1000)) : 60
     res.setHeader('Retry-After', String(retry))
-    res.status(429).json({ error: 'Demasiadas peticiones. Espera un momento e inténtalo de nuevo.' })
+    sendJson(res, 429, { error: 'Demasiadas peticiones. Espera un momento e inténtalo de nuevo.' })
     return
   }
 
   // 4) Validación estricta del código (formato y longitud).
   const code = normalizeCode((req.body as { code?: unknown } | undefined)?.code)
   if (!code) {
-    res.status(400).json({ error: 'Código inválido.' })
+    sendJson(res, 400, { error: 'Código inválido.' })
     return
   }
 
@@ -65,8 +77,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({ code }),
     })
     const data = await upstream.json()
-    res.status(upstream.status).json(data)
+    sendJson(res, upstream.status, data)
   } catch {
-    res.status(502).json({ error: 'No se pudo contactar con el servicio de envíos.' })
+    sendJson(res, 502, { error: 'No se pudo contactar con el servicio de envíos.' })
   }
 }
