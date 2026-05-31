@@ -1,3 +1,21 @@
+/* Fuentes self-hosted (variables, un fichero por familia cubre todos los pesos).
+   font-display:swap → el texto se pinta ya con la fuente del sistema y cambia al
+   cargar. Antes venían de Google Fonts (render-blocking + cadena a gstatic). */
+@font-face{
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/fonts/hanken-grotesk.woff2") format("woff2");
+}
+@font-face{
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url("/fonts/jetbrains-mono.woff2") format("woff2");
+}
+
 :root{
   --bg: oklch(0.984 0.005 90);
   --surface: oklch(0.999 0.0015 90);
