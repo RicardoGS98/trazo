@@ -1,14 +1,14 @@
-import type { TrackingResponse } from '../types'
+import type { TrackingInfo } from '../types'
 import { t } from './i18n'
 
 /**
- * Punto único de integración con el backend.
- * El navegador llama SIEMPRE a /api/tracking (mismo origen) para evitar CORS:
- *  - dev:  lo resuelve el server.proxy de Vite (ver vite.config.ts)
- *  - prod: lo resuelve la función serverless api/tracking.ts (Vercel)
- * Ambos reenvían el POST a emarket-services.com con el mismo cuerpo { code }.
+ * Integración con el backend. El navegador llama SIEMPRE same-origin para
+ * evitar CORS; el proxy serverless consulta el API real y devuelve la forma
+ * NORMALIZADA (TrackingInfo).
+ *  - dev:  Vite proxya /api/tracking (ver vite.config.ts)
+ *  - prod: funciones serverless api/tracking.ts y api/tracking-bulk.ts
  */
-export async function fetchTracking(code: string): Promise<TrackingResponse> {
+export async function fetchTracking(code: string): Promise<TrackingInfo> {
   const res = await fetch('/api/tracking', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -16,9 +16,10 @@ export async function fetchTracking(code: string): Promise<TrackingResponse> {
   })
   if (!res.ok) {
     if (res.status === 429) throw new Error(t('error.rateLimitSingle'))
+    if (res.status === 404) throw new Error(t('error.notFound'))
     throw new Error(t('error.lookupFailed'))
   }
-  return (await res.json()) as TrackingResponse
+  return (await res.json()) as TrackingInfo
 }
 
 /** Tope de envíos por lote en el refresco masivo (debe coincidir con el backend). */
@@ -29,7 +30,7 @@ export interface BulkResult {
   code: string
   ok: boolean
   status: number
-  data?: TrackingResponse
+  data?: TrackingInfo
 }
 
 /**

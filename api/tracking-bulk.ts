@@ -1,16 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { BULK_MAX_CODES, checkBulkRateLimit, clientIp, isAllowedOrigin, normalizeCodes } from './_lib/guard.js'
+import { fetchTrackingInfo, type TrackingInfo } from './_lib/upstream.js'
 
-const UPSTREAM = 'https://emarket-services.com/api/orders/delivery_status_by_code/'
-const MAX_BODY_BYTES = 4096 // 10 códigos + JSON; holgado pero acotado
-const CONCURRENCY = 5 // peticiones simultáneas al upstream
-const PER_CALL_TIMEOUT_MS = 8000 // timeout por código (dentro del límite de la función)
+const MAX_BODY_BYTES = 4096
+const CONCURRENCY = 5
+const PER_CALL_TIMEOUT_MS = 8000
 
 interface BulkItem {
   code: string
   ok: boolean
   status: number
-  data?: unknown
+  data?: TrackingInfo
 }
 
 function sendJson(res: VercelResponse, status: number, body: unknown): void {
@@ -19,21 +19,15 @@ function sendJson(res: VercelResponse, status: number, body: unknown): void {
   res.end(JSON.stringify(body))
 }
 
-/** Consulta un código en el upstream con timeout; nunca lanza (resultado parcial). */
-async function fetchOne(code: string): Promise<BulkItem> {
+/** Consulta un código con timeout; nunca lanza (resultado parcial). */
+async function one(code: string): Promise<BulkItem> {
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), PER_CALL_TIMEOUT_MS)
   try {
-    const upstream = await fetch(UPSTREAM, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
-      signal: ctrl.signal,
-    })
-    const data = await upstream.json().catch(() => null)
-    return { code, ok: upstream.ok, status: upstream.status, data: upstream.ok ? data : undefined }
+    const r = await fetchTrackingInfo(code, ctrl.signal)
+    return { code, ok: r.ok, status: r.status, data: r.data }
   } catch {
-    return { code, ok: false, status: 0 } // timeout o error de red
+    return { code, ok: false, status: 0 }
   } finally {
     clearTimeout(timer)
   }
@@ -54,10 +48,9 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
 }
 
 /**
- * Refresco masivo: el navegador envía POST /api/tracking-bulk { codes: [...] }
- * y reenviamos cada código al API real (en paralelo limitado), devolviendo un
- * resultado por código para que el cliente actualice los que respondan.
- * Mismas guardas que /api/tracking + rate limit propio (1/min) y tope de 10.
+ * Refresco masivo: POST /api/tracking-bulk { codes: [...] } → un resultado
+ * normalizado por código (parcial: los fallos no tumban el lote). Mismas
+ * guardas que /api/tracking + rate limit propio (1/min) y tope de 10.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('X-Content-Type-Options', 'nosniff')
@@ -77,7 +70,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  // Rate limit propio: 1 lote por minuto e IP.
   const rl = await checkBulkRateLimit(clientIp(req))
   res.setHeader('X-RateLimit-Limit', String(rl.limit))
   res.setHeader('X-RateLimit-Remaining', String(Math.max(0, rl.remaining)))
@@ -88,13 +80,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  // Valida, normaliza y deduplica; tope de 10 códigos.
   const codes = normalizeCodes((req.body as { codes?: unknown } | undefined)?.codes, BULK_MAX_CODES)
   if (!codes) {
     sendJson(res, 400, { error: `Lista de códigos inválida (máximo ${BULK_MAX_CODES}).` })
     return
   }
 
-  const results = await mapLimit(codes, CONCURRENCY, fetchOne)
+  const results = await mapLimit(codes, CONCURRENCY, one)
   sendJson(res, 200, { results })
 }

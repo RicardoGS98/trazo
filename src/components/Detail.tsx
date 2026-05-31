@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import type { Shipment } from '../types'
-import { parseDate, rel, isDelivered } from '../lib/date'
-import { translateStatus } from '../lib/status'
+import { parseDate, rel } from '../lib/date'
+import { statusName, phaseName, phaseChipStyle } from '../lib/status'
 import { t } from '../lib/i18n'
 import { Timeline } from './Timeline'
 import { RefreshButton } from './RefreshButtons'
@@ -21,13 +21,14 @@ export function Detail({ shipment, refreshing, changed, onBack, onAlias, onRefre
   const [alias, setAliasText] = useState(shipment.alias)
   const aliasRef = useRef<HTMLInputElement | null>(null)
 
-  const events = [...(shipment.data[0]?.tracking_data ?? [])].sort(
-    (a, b) => parseDate(b.date).getTime() - parseDate(a.date).getTime(),
-  )
-  const notes = shipment.data[0]?.notes
-  const latest = events[0]
-  const done = !!latest && isDelivered(latest.status)
-  const latestDate = latest ? parseDate(latest.date) : null
+  const info = shipment.info
+  const events = info ? [...info.timeline].sort((a, b) => parseDate(b.occurredAt).getTime() - parseDate(a.occurredAt).getTime()) : []
+  const delivered = !!info?.isDelivered
+  const phase = info?.phase
+  const lastDate = info?.lastEventAt ? parseDate(info.lastEventAt) : null
+  const sName = info ? statusName(info.status.code, info.status.name) : t('detail.noInfo')
+  const pName = phase ? phaseName(phase.code, phase.name) : ''
+  const showPhase = !!phase?.code && pName !== sName
 
   return (
     <>
@@ -64,27 +65,36 @@ export function Detail({ shipment, refreshing, changed, onBack, onAlias, onRefre
             </span>
           </div>
           <div className="status-row">
-            <span className={`badge ${done ? 'is-done' : ''}${changed ? ' flash-change-badge' : ''}`}>
-              <span className={done ? 'bd-dot' : 'pulse'}></span>
-              {latest ? translateStatus(latest.status) : t('detail.noInfo')}
+            <span
+              className={`badge ${delivered ? 'is-done' : ''}${changed ? ' flash-change-badge' : ''}`}
+              style={!delivered && phase?.color ? phaseChipStyle(phase.color) : undefined}
+            >
+              {delivered ? <span className="bd-emoji">{phase?.icon || '✅'}</span> : <span className="pulse"></span>}
+              {sName}
             </span>
+            {showPhase && (
+              <span className="phase-chip lg" style={phaseChipStyle(phase!.color)}>
+                {phase!.icon && <span className="pc-ico">{phase!.icon}</span>}
+                {pName}
+              </span>
+            )}
           </div>
+          {info && (
+            <div className="parcels">
+              📦 {info.totalParcels > 1 ? t('parcels.summary', { d: info.deliveredParcels, t: info.totalParcels }) : t('parcels.one')}
+            </div>
+          )}
           <div className="upd" style={{ marginTop: 9 }}>
-            {latestDate ? t('detail.lastUpdate', { rel: rel(latestDate) }) : ''}
+            {lastDate ? t('detail.lastUpdate', { rel: rel(lastDate) }) : ''}
           </div>
         </div>
         <div className="tl">
           {events.length ? (
-            <Timeline events={events} done={done} />
+            <Timeline events={events} />
           ) : (
             <div style={{ color: 'var(--faint)', padding: '20px 0', fontSize: 14 }}>{t('detail.noEvents')}</div>
           )}
         </div>
-        {notes && (
-          <div className="notes">
-            <b>{t('detail.note')}</b> {notes}
-          </div>
-        )}
         <div className="card-foot">
           <RefreshButton variant="detail" hbl={shipment.hbl} refreshing={refreshing} onRefresh={onRefresh} />
           <button className="fbtn danger" onClick={() => onDelete(shipment.hbl)}>
