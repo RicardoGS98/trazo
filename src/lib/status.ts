@@ -1,33 +1,44 @@
 import { lang } from './i18n'
 
 /**
- * Traducción del texto de estado del envío, que llega del API en español.
- * La clave del mapa es el texto "normalizado": minúsculas, sin tildes/acentos,
- * espacios colapsados y recortados; se conservan paréntesis y demás signos.
- * Así "Depósito de Distribución (Almacén La Habana)" →
- * "deposito de distribucion (almacen la habana)".
+ * Traducción por CÓDIGO (estable) del endpoint nuevo. En español usamos el
+ * nombre que ya da el API; en inglés, nuestro mapa por código con fallback al
+ * nombre del API si el código aún no está mapeado. Amplía los mapas según
+ * aparezcan nuevos códigos.
  */
-export function normalizeStatus(s: string): string {
-  return s
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '') // quita tildes/acentos
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, ' ')
-}
-
-// es → en. Añade aquí nuevos estados según vayan apareciendo.
 const STATUS_EN: Record<string, string> = {
-  'en proceso de aduana': 'In Customs Processing',
-  'deposito de distribucion (almacen la habana)': 'Distribution Warehouse (Havana Warehouse)',
+  BRANCH_PROCESSING: 'Processing at Branch',
+  CARRIER_RECEIVED: 'Received by Carrier',
+  READY_FOR_DISPATCH: 'Ready for Dispatch',
+  READY_FOR_INTERNATIONAL_DISPATCH: 'Ready for International Dispatch',
+  IN_TRANSIT_TO_HUB: 'In Transit to Hub',
+  AT_DISTRIBUTION_CENTER: 'At Distribution Center',
+  DELIVERED: 'Delivered',
 }
 
-/**
- * Traduce un estado al inglés solo si la UI está en inglés y está mapeado;
- * en cualquier otro caso devuelve el texto original tal cual.
- */
-export function translateStatus(status: string | null | undefined): string {
-  const s = status ?? ''
-  if (lang !== 'en' || !s) return s
-  return STATUS_EN[normalizeStatus(s)] ?? s
+// Fases conocidas (por step): 1 Origen, 2 En Viaje, 4 Distribución, 5 Entregado.
+// (El step 3 aún no lo hemos visto.)
+const PHASE_EN: Record<string, string> = {
+  ORIGIN: 'Origin',
+  IN_TRANSIT: 'In Transit',
+  DISTRIBUTION: 'Distribution',
+  DELIVERED: 'Delivered',
+}
+
+/** Nombre del estado en el idioma activo. */
+export function statusName(code: string, apiName: string): string {
+  if (lang !== 'en') return apiName
+  return STATUS_EN[code] || apiName
+}
+
+/** Nombre de la fase en el idioma activo. */
+export function phaseName(code: string, apiName: string): string {
+  if (lang !== 'en') return apiName
+  return PHASE_EN[code] || apiName
+}
+
+/** Tinte suave (texto/fondo/borde) a partir del color hex de la fase. */
+export function phaseChipStyle(color: string) {
+  if (!color) return { color: 'var(--accent-strong)', background: 'var(--accent-soft)', borderColor: 'transparent' }
+  return { color, background: `${color}14`, borderColor: `${color}33` }
 }

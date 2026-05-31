@@ -55,6 +55,9 @@ const EN: Dict = {
 
   'common.offline': 'Offline',
   'common.wait': 'Wait {s}s',
+  'common.delivered': 'Delivered',
+  'parcels.one': '1 parcel',
+  'parcels.summary': '{d} of {t} parcels delivered',
 
   'flash.bulkResult': 'Updated {ok} of {total} shipments.',
   'flash.bulkError': "Couldn't refresh the shipments.",
@@ -109,6 +112,9 @@ const ES: Dict = {
 
   'common.offline': 'Sin conexión',
   'common.wait': 'Espera {s}s',
+  'common.delivered': 'Entregado',
+  'parcels.one': '1 bulto',
+  'parcels.summary': '{d} de {t} bultos entregados',
 
   'flash.bulkResult': 'Actualizados {ok} de {total} envíos.',
   'flash.bulkError': 'No se pudieron actualizar los envíos.',

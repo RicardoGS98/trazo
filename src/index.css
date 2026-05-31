@@ -388,3 +388,27 @@ input.alias:focus{ background: var(--accent-soft); box-shadow: 0 0 0 2px var(--a
 @media (prefers-reduced-motion: reduce){
   .ship-status.flash-change, .badge.flash-change-badge{ animation-duration: .01ms; }
 }
+
+/* ---------- fase / bultos / entregado ---------- */
+.ship-meta{ display:flex; align-items:center; flex-wrap: wrap; gap: 7px; margin-left: 20px; margin-top: 1px; }
+.phase-chip{
+  display:inline-flex; align-items:center; gap: 5px;
+  font-size: 11.5px; font-weight: 600; line-height: 1;
+  padding: 3px 9px; border-radius: 999px;
+  border: 1px solid transparent;
+}
+.phase-chip.lg{ font-size: 12.5px; padding: 5px 11px; }
+.pc-ico{ font-size: 12px; line-height: 1; }
+.phase-chip.lg .pc-ico{ font-size: 13px; }
+.parcels-chip{ display:inline-flex; align-items:center; gap: 4px; font-size: 11.5px; color: var(--faint); font-family: "JetBrains Mono", monospace; }
+.parcels{ display:flex; align-items:center; gap: 6px; font-size: 12.5px; color: var(--muted); margin-top: 11px; }
+
+/* estado "entregado": verde con ✅ en la propia línea/badge (sin chip duplicado) */
+.ship-status.is-delivered{ color: oklch(0.5 0.115 152); font-weight: 600; }
+.bd-emoji{ font-size: 12px; line-height: 1; }
+
+/* fase grande en Detalle, junto al badge (la fila ya tiene gap) */
+.status-row{ flex-wrap: wrap; }
+
+/* icono de fase en cada evento del timeline */
+.ev-icon{ margin-right: 6px; font-size: 13px; }

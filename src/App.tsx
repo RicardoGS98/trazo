@@ -14,9 +14,9 @@ import { IconLock } from './components/Icons'
 
 type View = 'home' | 'detail'
 
-/** Epoch ms del último evento, o 0 si no hay (para ordenar). */
-function ts(date: string | null): number {
-  return date ? parseDate(date).getTime() : 0
+/** Clave de orden: epoch ms del último evento; cae a updatedAt si no hay info. */
+function sortKey(s: Shipment): number {
+  return s.info?.lastEventAt ? parseDate(s.info.lastEventAt).getTime() : s.updatedAt || 0
 }
 
 export default function App() {
@@ -31,8 +31,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [lastQuery, setLastQuery] = useState('')
 
-  // Hidratar la lista desde IndexedDB al arrancar.
-  useEffect(() => { void reload() }, [])
+  // Hidratar desde IndexedDB y migrar las entradas en formato antiguo.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { void init() }, [])
 
   // El mensaje de resultado del refresco masivo se desvanece solo.
   useEffect(() => {
@@ -41,11 +42,34 @@ export default function App() {
     return () => clearTimeout(id)
   }, [flash])
 
-  // Lista ordenada por "Actualizado hace" (fecha del último evento), desc.
+  async function init() {
+    await reload()
+    await migrateStale()
+  }
+
+  // Lista ordenada por "Actualizado" (último evento), desc.
   async function reload() {
     const all = await db.getAll()
-    all.sort((a, b) => ts(b.latestDate) - ts(a.latestDate))
+    all.sort((a, b) => sortKey(b) - sortKey(a))
     setShipments(all)
+  }
+
+  // Auto-actualiza al abrir los envíos guardados sin `info` (formato antiguo).
+  async function migrateStale() {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return
+    const stale = (await db.getAll()).filter((s) => !s.info).slice(0, BULK_MAX_CODES)
+    if (!stale.length) return
+    await Promise.all(
+      stale.map(async (s) => {
+        try {
+          const info = await fetchTracking(s.hbl)
+          await db.upsert(s.hbl, info)
+        } catch {
+          /* se reintenta en la próxima carga o al refrescar */
+        }
+      }),
+    )
+    await reload()
   }
 
   // Resalta unos segundos los envíos cuyo estado acaba de cambiar.
@@ -73,12 +97,8 @@ export default function App() {
     setLoading(true)
     setView('detail')
     try {
-      const data = await fetchTracking(c)
-      const events = data?.[0]?.tracking_data
-      if (!data || !data.length || !events || !events.length) {
-        throw new Error(t('error.notFound'))
-      }
-      await db.upsert(c, data)
+      const info = await fetchTracking(c)
+      await db.upsert(c, info)
       await reload()
       setActiveHbl(c)
       setLoading(false)
@@ -89,23 +109,20 @@ export default function App() {
     }
   }
 
-  // Refresco de UN envío (Detalle y card comparten esto). Límite 3/min por HBL,
-  // y no se dispara en vuelo ni sin conexión. Resalta si el estado cambia.
+  // Refresco de UN envío (Detalle y card). Límite 3/min por HBL; off en vuelo
+  // o sin conexión. Resalta si el código de estado cambia.
   async function refreshOne(hbl: string) {
     if (typeof navigator !== 'undefined' && !navigator.onLine) return
     if (refreshingHbls.has(hbl)) return
     if (!rl.check(rl.shipKey(hbl), rl.SHIP_MAX).ok) return
     rl.record(rl.shipKey(hbl))
-    const prevStatus = shipments.find((s) => s.hbl === hbl)?.latestStatus
+    const prev = shipments.find((s) => s.hbl === hbl)?.info?.status.code
     setRefreshingHbls((s) => new Set(s).add(hbl))
     try {
-      const data = await fetchTracking(hbl)
-      const events = data?.[0]?.tracking_data
-      if (data && data.length && events && events.length) {
-        const entry = await db.upsert(hbl, data)
-        await reload()
-        if (prevStatus !== undefined && entry.latestStatus !== prevStatus) markChanged([hbl])
-      }
+      const info = await fetchTracking(hbl)
+      await db.upsert(hbl, info)
+      await reload()
+      if (prev !== undefined && info.status.code !== prev) markChanged([hbl])
     } catch {
       /* refresco silencioso: si falla, conservamos lo que ya había */
     } finally {
@@ -117,8 +134,7 @@ export default function App() {
     }
   }
 
-  // Refresco masivo: los más recientes de una vez (máx BULK_MAX_CODES). Límite
-  // 1/min (cliente + servidor); off en vuelo / sin conexión / lista vacía.
+  // Refresco masivo: los más recientes (máx BULK_MAX_CODES). Límite 1/min.
   async function refreshAll() {
     if (typeof navigator !== 'undefined' && !navigator.onLine) return
     if (bulkRefreshing || !shipments.length) return
@@ -127,16 +143,15 @@ export default function App() {
     setBulkRefreshing(true)
     setFlash(null)
     const codes = shipments.slice(0, BULK_MAX_CODES).map((s) => s.hbl)
-    const prevStatus = new Map(shipments.map((s) => [s.hbl, s.latestStatus]))
+    const prev = new Map(shipments.map((s) => [s.hbl, s.info?.status.code]))
     try {
       const results = await fetchTrackingBulk(codes)
       const changed: string[] = []
       let ok = 0
       for (const r of results) {
-        const events = r.data?.[0]?.tracking_data
-        if (r.ok && r.data && events && events.length) {
-          const entry = await db.upsert(r.code, r.data)
-          if (prevStatus.get(r.code) !== entry.latestStatus) changed.push(r.code)
+        if (r.ok && r.data) {
+          await db.upsert(r.code, r.data)
+          if (prev.get(r.code) !== r.data.status.code) changed.push(r.code)
           ok++
         }
       }

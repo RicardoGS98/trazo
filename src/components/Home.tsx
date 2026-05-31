@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Shipment } from '../types'
-import { parseDate, rel, isDelivered } from '../lib/date'
-import { translateStatus } from '../lib/status'
+import { parseDate, rel } from '../lib/date'
+import { statusName, phaseName, phaseChipStyle } from '../lib/status'
 import { t } from '../lib/i18n'
 import { BULK_MAX_CODES } from '../lib/api'
 import { IconSearch, IconChev, IconBox, IconAlert } from './Icons'
@@ -95,9 +95,15 @@ export function Home({
       ) : (
         <div className="list">
           {shipments.map((s) => {
-            const d = s.latestDate ? parseDate(s.latestDate) : null
-            const done = isDelivered(s.latestStatus)
-            const dotCol = done ? 'var(--green)' : 'var(--accent)'
+            const info = s.info
+            const delivered = !!info?.isDelivered
+            const phase = info?.phase
+            const dotCol = delivered ? 'var(--green)' : phase?.color || 'var(--accent)'
+            const updated = info?.lastEventAt ? parseDate(info.lastEventAt) : null
+            const sName = info ? statusName(info.status.code, info.status.name) : '—'
+            const pName = phase ? phaseName(phase.code, phase.name) : ''
+            const showPhase = !!phase?.code && pName !== sName
+            const showParcels = !!info && info.totalParcels > 1
             return (
               <div key={s.hbl} className="ship">
                 <button className="ship-open" onClick={() => onOpen(s.hbl)} aria-label={t('card.openAria', { name: s.alias || s.hbl })}>
@@ -106,10 +112,23 @@ export function Home({
                     <span className="ship-name">{s.alias || s.hbl}</span>
                   </span>
                   {s.alias && <span className="ship-code">{s.hbl}</span>}
-                  <span className={`ship-status${changedHbls.has(s.hbl) ? ' flash-change' : ''}`}>
-                    {translateStatus(s.latestStatus) || '—'}
+                  <span className={`ship-status${delivered ? ' is-delivered' : ''}${changedHbls.has(s.hbl) ? ' flash-change' : ''}`}>
+                    {delivered ? '✅ ' : ''}{sName}
                   </span>
-                  <span className="ship-when">{d ? t('card.updated', { rel: rel(d) }) : ''}</span>
+                  {(showPhase || showParcels) && (
+                    <span className="ship-meta">
+                      {showPhase && (
+                        <span className="phase-chip" style={phaseChipStyle(phase!.color)}>
+                          {phase!.icon && <span className="pc-ico">{phase!.icon}</span>}
+                          {pName}
+                        </span>
+                      )}
+                      {showParcels && (
+                        <span className="parcels-chip">📦 {info!.deliveredParcels}/{info!.totalParcels}</span>
+                      )}
+                    </span>
+                  )}
+                  <span className="ship-when">{updated ? t('card.updated', { rel: rel(updated) }) : ''}</span>
                 </button>
                 <span className="ship-actions">
                   <RefreshButton

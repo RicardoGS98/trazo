@@ -1,7 +1,6 @@
 import { openDB } from 'idb'
 import type { IDBPDatabase } from 'idb'
-import type { Shipment, TrackingResponse } from '../types'
-import { parseDate } from './date'
+import type { Shipment, TrackingInfo } from '../types'
 
 const DB_NAME = 'trazo'
 const STORE = 'shipments'
@@ -32,22 +31,17 @@ export async function get(hbl: string): Promise<Shipment | undefined> {
   return (await d.get(STORE, hbl.toUpperCase())) as Shipment | undefined
 }
 
-/** Inserta o actualiza un envío, recalculando el evento más reciente. */
-export async function upsert(hbl: string, data: TrackingResponse): Promise<Shipment> {
+/** Inserta o actualiza un envío con su info normalizada, conservando el alias. */
+export async function upsert(hbl: string, info: TrackingInfo): Promise<Shipment> {
   const key = hbl.toUpperCase()
   const d = await db()
-  const events = data[0]?.tracking_data ?? []
-  const sorted = [...events].sort((a, b) => parseDate(b.date).getTime() - parseDate(a.date).getTime())
-  const latest = sorted[0] ?? null
   const existing = (await d.get(STORE, key)) as Shipment | undefined
   const entry: Shipment = {
     hbl: key,
     alias: existing?.alias ?? '',
     savedAt: existing?.savedAt ?? Date.now(),
     updatedAt: Date.now(),
-    data,
-    latestStatus: latest ? latest.status : '—',
-    latestDate: latest ? latest.date : null,
+    info,
   }
   await d.put(STORE, entry)
   return entry
