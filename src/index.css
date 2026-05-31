@@ -407,6 +407,20 @@ input.alias:focus{ background: var(--accent-soft); box-shadow: 0 0 0 2px var(--a
 .ship-status.is-delivered{ color: oklch(0.5 0.115 152); font-weight: 600; }
 .bd-emoji{ font-size: 12px; line-height: 1; }
 
+/* ---------- tabs: En curso / Entregados ---------- */
+.tabs{ display:flex; align-items:center; justify-content:space-between; gap: 10px; margin: 4px 2px 12px; flex-wrap: wrap; }
+.tab-row{ display:inline-flex; gap: 3px; background: var(--line-soft); padding: 3px; border-radius: 11px; }
+.tab{
+  display:inline-flex; align-items:center; gap: 6px;
+  border: none; background: none; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 600; color: var(--muted);
+  padding: 6px 13px; border-radius: 8px; transition: background .15s, color .15s;
+}
+.tab:hover{ color: var(--ink); }
+.tab.on{ background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
+.tab-n{ font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--faint); }
+.tab.on .tab-n{ color: var(--accent-strong); }
+
 /* fase grande en Detalle, junto al badge (la fila ya tiene gap) */
 .status-row{ flex-wrap: wrap; }
 

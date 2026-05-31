@@ -96,7 +96,7 @@ export function Detail({ shipment, refreshing, changed, onBack, onAlias, onRefre
           )}
         </div>
         <div className="card-foot">
-          <RefreshButton variant="detail" hbl={shipment.hbl} refreshing={refreshing} onRefresh={onRefresh} />
+          {!delivered && <RefreshButton variant="detail" hbl={shipment.hbl} refreshing={refreshing} onRefresh={onRefresh} />}
           <button className="fbtn danger" onClick={() => onDelete(shipment.hbl)}>
             <IconTrash /> {t('detail.remove')}
           </button>
