@@ -16,22 +16,31 @@ const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_
 
 // Peticiones permitidas por IP en una ventana de 60s (override con RL_MAX).
 const RL_MAX = Number(process.env.RL_MAX ?? 20)
+// Refresco masivo /api/tracking-bulk: como mucho 1 lote por minuto e IP.
+const BULK_MAX = Number(process.env.BULK_RL_MAX ?? 1)
+// Tope de códigos por lote (se valida también en el endpoint).
+export const BULK_MAX_CODES = Number(process.env.BULK_MAX_CODES ?? 10)
 
-// Se crea una sola vez por instancia (Fluid Compute reutiliza instancias) y
-// solo si hay credenciales: así el deploy sigue funcionando aunque Upstash
-// todavía no esté provisto (en ese caso, simplemente no se limita).
-const ratelimiter =
-  REDIS_URL && REDIS_TOKEN
-    ? new Ratelimit({
-        redis: new Redis({ url: REDIS_URL, token: REDIS_TOKEN }),
-        limiter: Ratelimit.slidingWindow(RL_MAX, '60 s'),
-        prefix: 'trazo:tracking',
-        analytics: false,
-        ephemeralCache: new Map(), // cachea contadores en memoria de la instancia
-      })
-    : null
+// Una sola instancia de Redis por proceso (Fluid Compute reutiliza instancias)
+// y solo si hay credenciales: así el deploy funciona aunque Upstash no esté
+// provisto todavía (en ese caso, simplemente no se limita).
+const redis = REDIS_URL && REDIS_TOKEN ? new Redis({ url: REDIS_URL, token: REDIS_TOKEN }) : null
 
-export const rateLimitConfigured = ratelimiter !== null
+function makeLimiter(max: number, prefix: string): Ratelimit | null {
+  if (!redis) return null
+  return new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(max, '60 s'),
+    prefix,
+    analytics: false,
+    ephemeralCache: new Map(), // cachea contadores en memoria de la instancia
+  })
+}
+
+const ratelimiter = makeLimiter(RL_MAX, 'trazo:tracking')
+const bulkRatelimiter = makeLimiter(BULK_MAX, 'trazo:bulk')
+
+export const rateLimitConfigured = redis !== null
 
 export interface RateResult {
   ok: boolean
@@ -40,11 +49,11 @@ export interface RateResult {
   reset: number // epoch ms en que se libera la ventana (0 si no aplica)
 }
 
-export async function checkRateLimit(ip: string): Promise<RateResult> {
+async function check(limiter: Ratelimit | null, ip: string, fallbackMax: number): Promise<RateResult> {
   // Sin Upstash configurado → no limitamos (fail-open explícito y documentado).
-  if (!ratelimiter) return { ok: true, limit: RL_MAX, remaining: RL_MAX, reset: 0 }
+  if (!limiter) return { ok: true, limit: fallbackMax, remaining: fallbackMax, reset: 0 }
   try {
-    const r = await ratelimiter.limit(ip)
+    const r = await limiter.limit(ip)
     // limit() lanza trabajo en segundo plano (sync multi-region/analytics) en
     // `pending`. En Fluid Compute una promesa colgante interfiere con el envío
     // de la respuesta (cuerpo vacío); la resolvemos antes de devolver para que
@@ -58,9 +67,12 @@ export async function checkRateLimit(ip: string): Promise<RateResult> {
   } catch {
     // Si Redis falla puntualmente, no tiramos la app: permitimos pero avisamos.
     console.warn('[tracking] rate limiter no disponible; se permite la petición')
-    return { ok: true, limit: RL_MAX, remaining: RL_MAX, reset: 0 }
+    return { ok: true, limit: fallbackMax, remaining: fallbackMax, reset: 0 }
   }
 }
+
+export const checkRateLimit = (ip: string): Promise<RateResult> => check(ratelimiter, ip, RL_MAX)
+export const checkBulkRateLimit = (ip: string): Promise<RateResult> => check(bulkRatelimiter, ip, BULK_MAX)
 
 // ---- IP del cliente ---------------------------------------------------------
 export function clientIp(req: VercelRequest): string {
@@ -115,4 +127,19 @@ export function normalizeCode(raw: unknown): string | null {
   if (typeof raw !== 'string') return null
   const code = raw.trim().toUpperCase()
   return CODE_RE.test(code) ? code : null
+}
+
+/**
+ * Valida y normaliza una lista de códigos para el refresco masivo: descarta los
+ * inválidos, deduplica y mantiene el formato. Devuelve null si el array no es
+ * válido, viene vacío, supera `max` (guard de payload) o no deja ninguno válido.
+ */
+export function normalizeCodes(raw: unknown, max: number): string[] | null {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > max) return null
+  const seen = new Set<string>()
+  for (const item of raw) {
+    const c = normalizeCode(item)
+    if (c) seen.add(c)
+  }
+  return seen.size ? [...seen] : null
 }

@@ -2,14 +2,15 @@ import { useState, useRef } from 'react'
 import type { Shipment } from '../types'
 import { parseDate, rel, isDelivered } from '../lib/date'
 import { Timeline } from './Timeline'
-import { IconBack, IconCopy, IconCheck, IconRefresh, IconTrash, IconPencil } from './Icons'
+import { RefreshButton } from './RefreshButtons'
+import { IconBack, IconCopy, IconCheck, IconTrash, IconPencil } from './Icons'
 
 interface DetailProps {
   shipment: Shipment
   refreshing: boolean
   onBack: () => void
   onAlias: (hbl: string, alias: string) => void
-  onRefresh: () => void
+  onRefresh: (hbl: string) => void
   onDelete: (hbl: string) => void
 }
 
@@ -82,9 +83,7 @@ export function Detail({ shipment, refreshing, onBack, onAlias, onRefresh, onDel
           </div>
         )}
         <div className="card-foot">
-          <button className={`fbtn ${refreshing ? 'spin' : ''}`} onClick={onRefresh}>
-            <IconRefresh /> Actualizar
-          </button>
+          <RefreshButton variant="detail" hbl={shipment.hbl} refreshing={refreshing} onRefresh={onRefresh} />
           <button className="fbtn danger" onClick={() => onDelete(shipment.hbl)}>
             <IconTrash /> Quitar
           </button>
