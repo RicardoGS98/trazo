@@ -371,3 +371,20 @@ input.alias:focus{ background: var(--accent-soft); box-shadow: 0 0 0 2px var(--a
 /* ---------- detail refresh: disabled state ---------- */
 .fbtn:disabled{ opacity: .55; cursor: default; }
 .fbtn:disabled:hover{ color: var(--muted); border-color: var(--line); background: var(--surface); }
+
+/* ---------- resaltado sutil al cambiar de estado (refresco) ---------- */
+/* Estado en la card: fondo que se difumina (sin desplazar el layout). */
+.ship-status.flash-change{ animation: flashBg 3.2s ease-out forwards; border-radius: 7px; }
+@keyframes flashBg{
+  0%, 45%{ background-color: var(--accent-soft); }
+  100%{ background-color: transparent; }
+}
+/* Estado (badge) en Detalle: halo que se difumina (la badge ya tiene fondo). */
+.badge.flash-change-badge{ animation: flashRing 3.2s ease-out forwards; }
+@keyframes flashRing{
+  0%, 45%{ box-shadow: 0 0 0 4px oklch(0.56 0.092 196 / 0.30); }
+  100%{ box-shadow: 0 0 0 0 oklch(0.56 0.092 196 / 0); }
+}
+@media (prefers-reduced-motion: reduce){
+  .ship-status.flash-change, .badge.flash-change-badge{ animation-duration: .01ms; }
+}

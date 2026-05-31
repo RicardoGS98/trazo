@@ -1,5 +1,6 @@
 import type { TrackingEvent } from '../types'
-import { parseDate, fmtDate, fmtTime } from '../lib/date'
+import { parseDate, fmtDate, fmtTime, hasTime } from '../lib/date'
+import { translateStatus } from '../lib/status'
 
 /** Timeline vertical: el evento más reciente primero (i === 0), destacado. */
 export function Timeline({ events, done }: { events: TrackingEvent[]; done: boolean }) {
@@ -11,9 +12,10 @@ export function Timeline({ events, done }: { events: TrackingEvent[]; done: bool
         return (
           <div key={i} className={cls} style={{ animationDelay: `${i * 45}ms` }}>
             <span className="node"></span>
-            <div className="ev-status">{e.status}</div>
+            <div className="ev-status">{translateStatus(e.status)}</div>
             <div className="ev-date">
-              <b>{fmtDate(d)}</b> · {fmtTime(d)}
+              <b>{fmtDate(d)}</b>
+              {hasTime(e.date) && <> · {fmtTime(d)}</>}
             </div>
           </div>
         )

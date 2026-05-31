@@ -6,6 +6,7 @@ import * as db from './lib/db'
 import * as rl from './lib/rateLimit'
 import { fetchTracking, fetchTrackingBulk, BULK_MAX_CODES } from './lib/api'
 import { parseDate } from './lib/date'
+import { t } from './lib/i18n'
 import { Home } from './components/Home'
 import { Detail } from './components/Detail'
 import { Skeleton } from './components/Skeleton'
@@ -24,6 +25,7 @@ export default function App() {
   const [activeHbl, setActiveHbl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [refreshingHbls, setRefreshingHbls] = useState<Set<string>>(() => new Set())
+  const [changedHbls, setChangedHbls] = useState<Set<string>>(() => new Set())
   const [bulkRefreshing, setBulkRefreshing] = useState(false)
   const [flash, setFlash] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -46,6 +48,23 @@ export default function App() {
     setShipments(all)
   }
 
+  // Resalta unos segundos los envíos cuyo estado acaba de cambiar.
+  function markChanged(hbls: string[]) {
+    if (!hbls.length) return
+    setChangedHbls((prev) => {
+      const n = new Set(prev)
+      hbls.forEach((h) => n.add(h))
+      return n
+    })
+    setTimeout(() => {
+      setChangedHbls((prev) => {
+        const n = new Set(prev)
+        hbls.forEach((h) => n.delete(h))
+        return n
+      })
+    }, 3500)
+  }
+
   async function lookup(code: string) {
     const c = (code || '').trim().toUpperCase()
     if (!c) return
@@ -57,7 +76,7 @@ export default function App() {
       const data = await fetchTracking(c)
       const events = data?.[0]?.tracking_data
       if (!data || !data.length || !events || !events.length) {
-        throw new Error('No encontramos información para ese número HBL. Revisa que esté bien escrito.')
+        throw new Error(t('error.notFound'))
       }
       await db.upsert(c, data)
       await reload()
@@ -66,24 +85,26 @@ export default function App() {
     } catch (err) {
       setLoading(false)
       setView('home')
-      setError(err instanceof Error ? err.message : 'No se pudo consultar el envío. Inténtalo de nuevo.')
+      setError(err instanceof Error ? err.message : t('error.lookupFailed'))
     }
   }
 
   // Refresco de UN envío (Detalle y card comparten esto). Límite 3/min por HBL,
-  // y no se dispara en vuelo ni sin conexión.
+  // y no se dispara en vuelo ni sin conexión. Resalta si el estado cambia.
   async function refreshOne(hbl: string) {
     if (typeof navigator !== 'undefined' && !navigator.onLine) return
     if (refreshingHbls.has(hbl)) return
     if (!rl.check(rl.shipKey(hbl), rl.SHIP_MAX).ok) return
     rl.record(rl.shipKey(hbl))
+    const prevStatus = shipments.find((s) => s.hbl === hbl)?.latestStatus
     setRefreshingHbls((s) => new Set(s).add(hbl))
     try {
       const data = await fetchTracking(hbl)
       const events = data?.[0]?.tracking_data
       if (data && data.length && events && events.length) {
-        await db.upsert(hbl, data)
+        const entry = await db.upsert(hbl, data)
         await reload()
+        if (prevStatus !== undefined && entry.latestStatus !== prevStatus) markChanged([hbl])
       }
     } catch {
       /* refresco silencioso: si falla, conservamos lo que ya había */
@@ -106,20 +127,24 @@ export default function App() {
     setBulkRefreshing(true)
     setFlash(null)
     const codes = shipments.slice(0, BULK_MAX_CODES).map((s) => s.hbl)
+    const prevStatus = new Map(shipments.map((s) => [s.hbl, s.latestStatus]))
     try {
       const results = await fetchTrackingBulk(codes)
+      const changed: string[] = []
       let ok = 0
       for (const r of results) {
         const events = r.data?.[0]?.tracking_data
         if (r.ok && r.data && events && events.length) {
-          await db.upsert(r.code, r.data)
+          const entry = await db.upsert(r.code, r.data)
+          if (prevStatus.get(r.code) !== entry.latestStatus) changed.push(r.code)
           ok++
         }
       }
       await reload()
-      setFlash(`Actualizados ${ok} de ${codes.length} envíos.`)
+      markChanged(changed)
+      setFlash(t('flash.bulkResult', { ok, total: codes.length }))
     } catch (err) {
-      setFlash(err instanceof Error ? err.message : 'No se pudieron actualizar los envíos.')
+      setFlash(err instanceof Error ? err.message : t('flash.bulkError'))
     } finally {
       setBulkRefreshing(false)
     }
@@ -158,6 +183,7 @@ export default function App() {
           key={active.hbl}
           shipment={active}
           refreshing={refreshingHbls.has(active.hbl)}
+          changed={changedHbls.has(active.hbl)}
           onBack={back}
           onAlias={saveAlias}
           onRefresh={refreshOne}
@@ -174,6 +200,7 @@ export default function App() {
         onOpen={openSaved}
         onRefreshOne={refreshOne}
         refreshingHbls={refreshingHbls}
+        changedHbls={changedHbls}
         onRefreshAll={refreshAll}
         bulkRefreshing={bulkRefreshing}
         flash={flash}
@@ -187,13 +214,13 @@ export default function App() {
         <div className="brand-mark"><span></span></div>
         <div>
           <div className="brand-name">Trazo</div>
-          <div className="brand-tag">Seguimiento de envíos</div>
+          <div className="brand-tag">{t('brand.tag')}</div>
         </div>
       </div>
       {renderContent()}
       <div className="foot">
         <span>
-          <IconLock /> Tus envíos se guardan solo en este navegador
+          <IconLock /> {t('footer.privacy')}
         </span>
       </div>
       <Analytics />
