@@ -14,6 +14,9 @@ export async function fetchTracking(code: string): Promise<TrackingResponse> {
     body: JSON.stringify({ code: code.trim() }),
   })
   if (!res.ok) {
+    if (res.status === 429) {
+      throw new Error('Demasiadas consultas seguidas. Espera unos segundos e inténtalo de nuevo.')
+    }
     throw new Error('No se pudo consultar el envío. Inténtalo de nuevo.')
   }
   return (await res.json()) as TrackingResponse
